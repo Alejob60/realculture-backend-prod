@@ -36,7 +36,7 @@ export class UserEntity {
   plan: string;
 
   @Column({ nullable: true }) // ✅ Nuevo: campo 'picture' (avatar opcional)
-  picture?: string;
+  avatar?: string;
 
   @Column({ type: 'int', default: 25 })
   credits: number;

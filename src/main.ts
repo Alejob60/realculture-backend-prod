@@ -8,50 +8,72 @@ import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as cookieParser from 'cookie-parser';
 
-async function bootstrap() {
-  // Cargar variables de entorno
-  dotenv.config();
+dotenv.config();
 
-  // Crear la aplicación
+function checkEnvVars(requiredVars: string[]) {
+  const missing = requiredVars.filter((v) => !process.env[v]);
+  if (missing.length > 0) {
+    console.error('❌ Faltan variables de entorno:', missing);
+    process.exit(1);
+  }
+}
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+});
+
+async function bootstrap() {
+  // Verifica las variables mínimas necesarias
+  checkEnvVars([
+    'PORT',
+    'DB_HOST',
+    'DB_PORT',
+    'DB_USERNAME',
+    'DB_PASSWORD',
+    'DB_NAME',
+    'DATABASE_URL', // opcional si usas url directamente
+  ]);
+
+  
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Seguridad con cabeceras HTTP
   app.use(helmet());
 
-  // Habilitar CORS de forma controlada (ajusta esto en producción)
   app.enableCors({
-    origin: ['http://localhost:3000'], // Cambiar por dominio de frontend en producción
+    origin: '*',
     methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
+
   app.use(cookieParser());
 
-  // Protección contra abuso con rate limiting
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutos
-      max: 100, // Máximo 100 peticiones por IP
+      windowMs: 15 * 60 * 1000,
+      max: 100,
       message: '⚠️ Demasiadas solicitudes. Intenta nuevamente en unos minutos.',
     }),
   );
 
-  // Servir archivos estáticos desde la carpeta public
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
-  // Verificar conexión a base de datos
   const dataSource = app.get(DataSource);
-  if (dataSource.isInitialized) {
+  try {
+    if (!dataSource.isInitialized) {
+      await dataSource.initialize();
+    }
     console.log('✅ Conexión a la base de datos establecida correctamente.');
-  } else {
-    console.error('❌ Fallo al conectar a la base de datos.');
+  } catch (error) {
+    console.error('❌ Error al inicializar la base de datos:', error);
   }
 
-  // Levantar el servidor en el puerto especificado
-  await app.listen(process.env.PORT || 3001);
-  console.log(
-    `🚀 Backend listo en http://localhost:${process.env.PORT || 3001}`,
-  );
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+  console.log(`🚀 Backend escuchando en http://localhost:${port}`);
 }
 
 bootstrap();

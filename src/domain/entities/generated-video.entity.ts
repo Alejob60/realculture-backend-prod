@@ -1,4 +1,3 @@
-// src/domain/entities/generated-video.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -23,7 +22,19 @@ export class GeneratedVideoEntity {
   videoUrl: string;
 
   @Column({ nullable: true })
-  prompt: string;
+  prompt: string; // Prompt mejorado para video
+
+  @Column({ nullable: true })
+  filename: string; // Nombre en Azure Blob
+
+  @Column({ nullable: true, type: 'int' })
+  duration: number; // En segundos (para créditos)
+
+  @Column({ default: 'processing' })
+  status: string; // 'processing' | 'ready' | 'failed'
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date; // Expiración por plan
 
   @CreateDateColumn()
   createdAt: Date;

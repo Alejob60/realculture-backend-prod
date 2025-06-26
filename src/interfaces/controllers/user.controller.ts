@@ -95,6 +95,7 @@ export class UserController {
       credits: updatedUser.credits,
     };
   }
+
   @Patch('upgrade')
   async upgradePlan(
     @Req() req: RequestWithUser,
@@ -111,7 +112,8 @@ export class UserController {
       throw new BadRequestException('Plan inválido');
     }
 
-    const result = await this.userService.upgradePlan(userId, newPlan);
+    // Aquí es donde se pasa el tercer parámetro 'transactionVerified' como 'true'
+    const result = await this.userService.upgradePlan(userId, newPlan, true);
 
     return {
       message: '✅ Plan actualizado exitosamente',

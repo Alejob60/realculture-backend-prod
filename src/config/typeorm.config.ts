@@ -1,15 +1,20 @@
-import { DataSource } from 'typeorm';
+// src/config/typeorm.config.ts
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserEntity } from '../domain/entities/user.entity';
-import * as dotenv from 'dotenv';
-dotenv.config();
 
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5544'),
-  username: process.env.DB_USERNAME || 'postgres',
-  password: process.env.DB_PASSWORD || '1234',
-  database: process.env.DB_NAME || 'postgres',
-  entities: [UserEntity],
-  synchronize: true, // ⚠️ Solo en desarrollo
-});
+export const typeOrmConfigAsync = {
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: async (config: ConfigService): Promise<TypeOrmModuleOptions> => ({
+    type: 'postgres',
+    host: config.get('DB_HOST'),
+    port: config.get<number>('DB_PORT'),
+    username: config.get('DB_USERNAME'),
+    password: config.get('DB_PASSWORD'),
+    database: config.get('DB_NAME'),
+    synchronize: config.get('TYPEORM_SYNCHRONIZE') === 'true',
+    ssl: config.get('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+    entities: [UserEntity],
+  }),
+};

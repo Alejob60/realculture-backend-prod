@@ -1,4 +1,3 @@
-// src/domain/entities/generated-image.entity.ts
 import {
   Entity,
   Column,
@@ -14,19 +13,22 @@ export class GeneratedImageEntity {
   id: string;
 
   @Column()
-  prompt: string; // ✅ Este es el prompt mejorado, no el original
+  prompt: string; // Prompt mejorado usado para generar la imagen
 
   @Column({ nullable: true })
-  imageUrl: string; // ✅ Renombrado desde `url` para mayor claridad
+  imageUrl: string; // URL final con SAS token o pública
 
-  @Column({ nullable: true }) // 🔥 Esto evita el error al sincronizar
-  filename: string;
+  @Column({ nullable: true })
+  filename: string; // Nombre en Azure Blob
 
-  @Column({ default: 'active' }) // ✅ Puede ser: 'active', 'expired'
-  status: string;
+  @Column({ default: 'active' })
+  status: string; // 'active', 'expired', etc.
 
   @Column({ type: 'timestamp', nullable: true })
-  expiresAt: Date; // ✅ Fecha de expiración basada en el plan del usuario
+  expiresAt: Date; // Fecha de expiración por plan
+
+  @Column()
+  userId: string; // Para consultas rápidas por FK
 
   @ManyToOne(() => UserEntity, (user) => user.generatedImages)
   user: UserEntity;

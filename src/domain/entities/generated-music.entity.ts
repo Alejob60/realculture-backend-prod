@@ -22,7 +22,19 @@ export class GeneratedMusicEntity {
   musicUrl: string;
 
   @Column({ nullable: true })
-  prompt: string;
+  prompt: string; // Prompt generado por IA
+
+  @Column({ nullable: true })
+  genre: string; // Opcional: electrónica, clásica, lofi, etc.
+
+  @Column({ nullable: true })
+  filename: string; // Para Azure Blob
+
+  @Column({ nullable: true, type: 'int' })
+  duration: number; // En segundos, útil para créditos
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date; // Según plan: 24h / 30d
 
   @CreateDateColumn()
   createdAt: Date;

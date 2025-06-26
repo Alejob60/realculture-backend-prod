@@ -102,12 +102,11 @@ export class AuthService {
       const payload = ticket.getPayload();
       const email = payload?.email;
       const name = payload?.name ?? 'Usuario RealCulture';
+      const avatar = payload?.picture ?? ''; // 👈 Aquí obtenemos la imagen
       const googleId = payload?.sub;
 
       if (!email) {
-        throw new UnauthorizedException(
-          'Correo no disponible en token de Google',
-        );
+        throw new UnauthorizedException('Correo no disponible en token de Google');
       }
 
       let user = await this.userRepo.findByEmail(email);
@@ -116,6 +115,7 @@ export class AuthService {
         user = await this.userRepo.save({
           email,
           name,
+          avatar, // 👈 Guardamos el avatar en la base de datos
           googleId,
           role: UserRole.FREE,
           credits: 100,

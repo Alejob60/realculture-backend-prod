@@ -32,7 +32,7 @@ export class UserEntity {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.FREE })
   role: UserRole;
 
-  @Column({ default: 'FREE' }) // ✅ Nuevo: campo 'plan'
+  @Column({ default: 'free' }) // ✅ Nuevo: campo 'plan'
   plan: string;
 
   @Column({ nullable: true }) // ✅ Nuevo: campo 'picture' (avatar opcional)

@@ -15,6 +15,9 @@ export class GeneratedImageService {
     private readonly azureBlobService: AzureBlobService,
   ) {}
 
+  /**
+   * Guarda la imagen generada en la base de datos con su URL de Blob y la fecha de expiración
+   */
   async saveImage(
     userId: string,
     prompt: string,
@@ -27,9 +30,9 @@ export class GeneratedImageService {
 
     const expiresAt = new Date();
     if (plan === 'FREE') {
-      expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
+      expiresAt.setHours(expiresAt.getHours() + 24);
     } else {
-      expiresAt.setDate(expiresAt.getDate() + 30); // 30 días
+      expiresAt.setDate(expiresAt.getDate() + 30);
     }
 
     const image = this.repo.create({
@@ -49,11 +52,15 @@ export class GeneratedImageService {
     };
   }
 
+  /**
+   * Recupera las imágenes activas con SAS URL según el plan
+   */
   async getImagesByUserId(userId: string) {
     const user = await this.userRepo.findOne({ where: { userId } });
     if (!user) throw new Error('Usuario no encontrado');
 
     const now = new Date();
+    const plan = user.role?.toUpperCase?.() || 'FREE';
 
     const images = await this.repo.find({
       where: {
@@ -63,13 +70,17 @@ export class GeneratedImageService {
       order: { createdAt: 'DESC' },
     });
 
-    // 🔐 Generar SAS URL por imagen
     const result = await Promise.all(
       images.map(async (img) => {
-        const signedUrl = await this.azureBlobService.getSignedUrl(
-          img.filename,
-          24 * 60 * 60,
-        ); // 24h
+        const expiresInSeconds = plan === 'FREE'
+          ? 24 * 60 * 60       // 24h
+          : 30 * 24 * 60 * 60;  // 30 días
+
+        const signedUrl = await this.azureBlobService.getSignedUrl({
+          filename: img.filename,
+          container: 'images',
+          expiresInSeconds,
+        });
 
         return {
           id: img.id,
@@ -84,11 +95,22 @@ export class GeneratedImageService {
     return result;
   }
 
+  /**
+   * Elimina imágenes expiradas del contenedor y la base de datos
+   */
   async deleteExpiredImages() {
     const now = new Date();
     const expiredImages = await this.repo.find({
       where: { expiresAt: LessThan(now) },
     });
+
+    for (const image of expiredImages) {
+      try {
+        await this.azureBlobService.deleteBlob(image.filename);
+      } catch (err) {
+        // log sin detener el borrado en BD
+      }
+    }
 
     if (expiredImages.length > 0) {
       await this.repo.remove(expiredImages);

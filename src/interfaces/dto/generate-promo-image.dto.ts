@@ -7,4 +7,7 @@ export class GeneratePromoImageDto {
   @IsOptional()
   @IsString()
   textOverlay?: string;
+
+  @IsString()
+  plan: string;
 }

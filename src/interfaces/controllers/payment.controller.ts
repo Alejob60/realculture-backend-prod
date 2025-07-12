@@ -17,7 +17,7 @@ export class PaymentsController {
   async processPayment(@Body() body: { 
     userId: string, 
     action: 'upgrade' | 'buy-credits', 
-    newPlan?: 'CREATOR' | 'PRO', 
+    newPlan?: 'creator' | 'pro', 
     creditsToAdd?: number, 
     audioDuration?: number 
   }) {

@@ -1,4 +1,5 @@
 // src/interfaces/controllers/audio.controller.ts
+
 import {
   Controller,
   Post,
@@ -7,14 +8,15 @@ import {
   UseGuards,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { UserService } from '../../infrastructure/services/user.service';
 import { MediaBridgeService } from '../../infrastructure/services/media-bridge.service';
 import { ContentService } from '../../infrastructure/services/content.service';
-import { AudioCompleteDto } from '../dto/audio-complete.dto';
 import { ContentUseCase } from '../../application/use-cases/content.use-case';
+import { AudioCompleteDto } from '../dto/audio-complete.dto';
 
 const AUDIO_DURATION_CREDIT_COST: Record<number, number> = {
   20: 5,
@@ -24,6 +26,8 @@ const AUDIO_DURATION_CREDIT_COST: Record<number, number> = {
 
 @Controller('/api/audio')
 export class AudioController {
+  private readonly logger = new Logger(AudioController.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly mediaBridgeService: MediaBridgeService,
@@ -35,67 +39,65 @@ export class AudioController {
   @UseGuards(JwtAuthGuard)
   async generateAudio(@Body() dto: any, @Req() req: Request) {
     const userId = req['user']?.userId;
-
-    if (!userId) {
-      throw new HttpException(
-        'Usuario no autenticado.',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
     const duration = dto.duration || 20;
 
+    if (!userId) {
+      throw new HttpException('Usuario no autenticado.', HttpStatus.UNAUTHORIZED);
+    }
+
     if (![20, 30, 60].includes(duration)) {
-      throw new HttpException(
-        'Duración no permitida. Usa 20, 30 o 60 segundos.',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Duración no permitida. Usa 20, 30 o 60 segundos.', HttpStatus.BAD_REQUEST);
     }
 
     const user = await this.userService.findById(userId);
     const cost = AUDIO_DURATION_CREDIT_COST[duration];
 
     if (!user || user.credits < cost) {
-      throw new HttpException(
-        'No tienes suficientes créditos para generar este audio.',
-        HttpStatus.FORBIDDEN,
-      );
+      throw new HttpException('No tienes suficientes créditos para generar este audio.', HttpStatus.FORBIDDEN);
     }
 
+    // 🔁 Intentar generar el audio antes de descontar créditos
+    let result;
+    try {
+      result = await this.mediaBridgeService.forward('audio/generate', req, dto);
+    } catch (err) {
+      this.logger.error('❌ Error al llamar al microservicio de audio:', err);
+      throw new HttpException('Error al generar audio', HttpStatus.BAD_GATEWAY);
+    }
+
+    const script = result?.script;
+    const audioUrl = result?.blobUrl;
+    const filename = result?.filename;
+    const realDuration = result?.duration || duration;
+
+    if (!script || !audioUrl || !filename) {
+      throw new HttpException('Respuesta inválida del servicio de audio.', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // ✅ Descontar créditos solo si todo salió bien
     await this.userService.decrementCredits(userId, cost);
 
-    const result = await this.mediaBridgeService.forward(
-      'audio/generate',
-      req,
-      dto,
-    );
-
-    // Validaciones seguras
-    const script = result?.script || '';
-    const audioUrl = result?.audioUrl || '';
-
-    if (!script || !audioUrl) {
-      throw new HttpException(
-        'Respuesta inválida del servicio de audio.',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
+    // ✅ Registrar contenido generado
     await this.contentService.create({
       title: script.slice(0, 60),
       description: script,
       mediaUrl: audioUrl,
       creator: user,
+      filename,
+      type: 'audio',
+      duration: realDuration,
     });
 
     return {
-      message: 'Audio generado con éxito',
+      message: '🎧 Audio generado con éxito',
       script,
       audioUrl,
-      duration: result.duration || duration,
+      filename,
+      duration: realDuration,
       creditsUsed: cost,
     };
   }
+
   @Post('/complete')
   async registerGeneratedAudio(@Body() dto: AudioCompleteDto) {
     await this.contentUseCase.registerGeneratedContent({

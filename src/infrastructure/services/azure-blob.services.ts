@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   BlobServiceClient,
   StorageSharedKeyCredential,
@@ -48,42 +53,52 @@ export class AzureBlobService {
 
     const fileBuffer = fs.readFileSync(filePath);
 
-    await blockBlobClient.upload(fileBuffer, fileBuffer.length);
-    const blobUrl = blockBlobClient.url;
-
-    this.logger.log(`📤 Archivo subido a Azure Blob Storage: ${blobUrl}`);
-    return blobUrl;
+    try {
+      await blockBlobClient.upload(fileBuffer, fileBuffer.length);
+      const blobUrl = blockBlobClient.url;
+      this.logger.log(`📤 Archivo subido a Azure Blob Storage: ${blobUrl}`);
+      return blobUrl;
+    } catch (error) {
+      this.logger.error(`❌ Error al subir archivo a Azure: ${error.message}`);
+      throw new HttpException(
+        'Error al subir archivo a Azure Blob Storage',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
    * Devuelve una URL firmada SAS para el archivo especificado, válida por X segundos.
    */
-  async getSignedUrl(
-    filename: string,
-    expiresInSeconds = 86400,
-  ): Promise<string> {
-    const containerClient = this.blobServiceClient.getContainerClient(
-      this.containerName,
-    );
-    const blobClient = containerClient.getBlobClient(filename);
+  async getSignedUrl({
+  filename,
+  container,
+  expiresInSeconds = 86400, // Establecemos 86400 por defecto (1 día)
+}: {
+  filename: string;
+  container: string;
+  expiresInSeconds: number;
+}): Promise<string> {
+  const containerClient = this.blobServiceClient.getContainerClient(container);
+  const blobClient = containerClient.getBlobClient(filename);
 
-    const expiresOn = new Date(Date.now() + expiresInSeconds * 1000);
+  const expiresOn = new Date(Date.now() + expiresInSeconds * 1000);
 
-    const sasToken = generateBlobSASQueryParameters(
-      {
-        containerName: this.containerName,
-        blobName: filename,
-        permissions: BlobSASPermissions.parse('r'),
-        expiresOn,
-        protocol: SASProtocol.Https,
-      },
-      this.sharedKeyCredential,
-    ).toString();
+  const sasToken = generateBlobSASQueryParameters(
+    {
+      containerName: container,
+      blobName: filename,
+      permissions: BlobSASPermissions.parse('r'), // Permiso de lectura
+      expiresOn,
+      protocol: SASProtocol.Https,
+    },
+    this.sharedKeyCredential,
+  ).toString();
 
-    const signedUrl = `${blobClient.url}?${sasToken}`;
-    this.logger.log(`🔐 URL firmada generada: ${signedUrl}`);
-    return signedUrl;
-  }
+  const signedUrl = `${blobClient.url}?${sasToken}`;
+  this.logger.log(`🔐 URL firmada generada: ${signedUrl}`);
+  return signedUrl;
+}
 
   /**
    * Elimina un archivo del contenedor de Azure.
@@ -94,12 +109,20 @@ export class AzureBlobService {
     );
     const blobClient = containerClient.getBlobClient(filename);
 
-    const exists = await blobClient.exists();
-    if (exists) {
-      await blobClient.delete();
-      this.logger.log(`🗑️ Blob eliminado: ${filename}`);
-    } else {
-      this.logger.warn(`⚠️ Blob no encontrado para eliminar: ${filename}`);
+    try {
+      const exists = await blobClient.exists();
+      if (exists) {
+        await blobClient.delete();
+        this.logger.log(`🗑️ Blob eliminado: ${filename}`);
+      } else {
+        this.logger.warn(`⚠️ Blob no encontrado para eliminar: ${filename}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error al eliminar archivo ${filename}: ${error.message}`);
+      throw new HttpException(
+        'Error al eliminar archivo de Azure Blob Storage',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

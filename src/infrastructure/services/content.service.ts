@@ -10,26 +10,30 @@ export class ContentService {
     private readonly userRepository: UserRepository,
   ) {}
 
+  // ✅ Crear nuevo contenido manual
   async create(contentData: Partial<Content>): Promise<Content> {
     return this.contentRepository.create(contentData);
   }
 
+  // ✅ Obtener todos los contenidos
   async findAll(): Promise<Content[]> {
     return this.contentRepository.findAll();
   }
 
+  // ✅ Buscar contenido por ID
   async findOne(id: string): Promise<Content> {
     const content = await this.contentRepository.findOne(id);
-    if (!content)
-      throw new NotFoundException(`Content with ID ${id} not found`);
+    if (!content) throw new NotFoundException(`Contenido con ID ${id} no encontrado`);
     return content;
   }
 
+  // ✅ Actualizar contenido existente
   async update(id: string, updateData: Partial<Content>): Promise<Content> {
     const existing = await this.findOne(id);
     return this.contentRepository.update(existing.id, updateData);
   }
 
+  // ✅ Eliminar contenido
   async remove(id: string): Promise<void> {
     const existing = await this.findOne(id);
     return this.contentRepository.delete(existing.id);
@@ -57,7 +61,7 @@ export class ContentService {
     });
   }
 
-  // ✅ Guarda cualquier contenido generado con tipo seguro
+  // ✅ Guarda cualquier contenido generado (imagen, video, etc.)
   async save(data: {
     userId: string;
     type: 'image' | 'audio' | 'video' | 'text' | 'other';
@@ -70,9 +74,7 @@ export class ContentService {
     const user = await this.userRepository.findById(data.userId);
 
     if (!user) {
-      throw new NotFoundException(
-        'Usuario no encontrado para guardar contenido',
-      );
+      throw new NotFoundException('Usuario no encontrado para guardar contenido');
     }
 
     const content: Partial<Content> = {
@@ -81,6 +83,7 @@ export class ContentService {
       mediaUrl: data.url,
       duration: data.duration,
       type: data.type,
+      status: data.status,
       creator: user,
       createdAt: data.createdAt,
     };

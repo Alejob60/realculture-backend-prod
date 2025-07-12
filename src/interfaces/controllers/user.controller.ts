@@ -99,7 +99,7 @@ export class UserController {
   @Patch('upgrade')
   async upgradePlan(
     @Req() req: RequestWithUser,
-    @Body() body: { newPlan: 'CREATOR' | 'PRO' },
+    @Body() body: { newPlan: 'creator' | 'pro' },
   ) {
     const userId = req.user?.id;
     if (!userId) {
@@ -108,7 +108,7 @@ export class UserController {
 
     const { newPlan } = body;
 
-    if (!['CREATOR', 'PRO'].includes(newPlan)) {
+    if (!['creator', 'pro'].includes(newPlan)) {
       throw new BadRequestException('Plan inválido');
     }
 

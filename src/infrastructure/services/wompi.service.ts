@@ -9,7 +9,7 @@ export class WompiService {
   private readonly WOMPI_API_URL = 'https://sandbox.wompi.co/v1';
 
   // Crea una sesión de pago de suscripción (para upgrade de plan)
-  async createSubscriptionSession(userId: string, newPlan: 'CREATOR' | 'PRO') {
+  async createSubscriptionSession(userId: string, newPlan: 'creator' | 'pro') {
     try {
       // Obtener los créditos del plan correspondiente
       const creditsToAdd = PLAN_CREDITS['promo-image'][newPlan];  // Usamos promo-image, puedes hacer lo mismo para otros servicios si lo deseas

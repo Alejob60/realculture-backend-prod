@@ -16,6 +16,9 @@ export class AiService {
     this.apiVersion = '2024-02-15-preview';
   }
 
+  /**
+   * Genera un texto promocional usando Azure OpenAI (modelo Chat Completion)
+   */
   async generatePromo(prompt: string): Promise<string> {
     try {
       const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;

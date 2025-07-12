@@ -22,8 +22,15 @@ export class AuthService {
     private readonly userRepo: UserRepository,
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    
+    // Inicializa cliente de Google
   }
 
+  /**
+   * Valida al usuario con email y contraseña y genera un token JWT.
+   * @param body Datos del login (email y contraseña)
+   * @returns El token y la información del usuario.
+   */
   async validateUserAndGenerateToken(
     body: LoginRequestDto,
   ): Promise<AuthResponseDto> {
@@ -46,7 +53,7 @@ export class AuthService {
     const token = this.jwtService.sign({
       sub: user.userId,
       email: user.email,
-      name: user.name,
+      name: user.name ?? 'Usuario sin nombre',
       role: user.role,
     });
 
@@ -60,6 +67,11 @@ export class AuthService {
     };
   }
 
+  /**
+   * Registra un nuevo usuario en el sistema.
+   * @param body Datos del registro (nombre, email, contraseña)
+   * @returns El token y la información del usuario registrado.
+   */
   async register(body: RegisterRequestDto): Promise<AuthResponseDto> {
     const existing = await this.userRepo.findByEmail(body.email);
     if (existing) {
@@ -72,7 +84,7 @@ export class AuthService {
       email: body.email,
       password: hashedPassword,
       role: UserRole.CREATOR,
-      credits: 100,
+      credits: 100, // Asignar créditos iniciales
     });
 
     const token = this.jwtService.sign({
@@ -92,40 +104,57 @@ export class AuthService {
     };
   }
 
+  /**
+   * Autentica al usuario usando un token de Google.
+   * @param idToken Token de autenticación de Google
+   * @returns El token JWT y la información del usuario autenticado
+   */
   async loginWithGoogle(idToken: string): Promise<AuthResponseDto> {
+    console.log('🔑 Recibiendo token de Google:', idToken); // Log para ver el token recibido
+
     try {
+      // Verifica el token de Google con el cliente OAuth2
       const ticket = await this.googleClient.verifyIdToken({
         idToken,
         audience: process.env.GOOGLE_CLIENT_ID,
       });
 
       const payload = ticket.getPayload();
+      console.log('🔑 Payload del token de Google:', payload); // Log para ver el payload
+
       const email = payload?.email;
       const name = payload?.name ?? 'Usuario RealCulture';
-      const avatar = payload?.picture ?? ''; // 👈 Aquí obtenemos la imagen
+      const avatar = payload?.picture ?? '';
       const googleId = payload?.sub;
 
       if (!email) {
+        console.error('❌ Correo no disponible en el token de Google');
         throw new UnauthorizedException('Correo no disponible en token de Google');
       }
 
+      // Buscar al usuario en la base de datos por el email
       let user = await this.userRepo.findByEmail(email);
+      console.log('🔑 Usuario encontrado:', user);
 
       if (!user) {
+        console.log('🔑 Usuario no encontrado, creando uno nuevo...');
+        // Si el usuario no existe, crearlo
         user = await this.userRepo.save({
           email,
           name,
-          avatar, // 👈 Guardamos el avatar en la base de datos
+          avatar,
           googleId,
-          role: UserRole.FREE,
-          credits: 100,
+          role: UserRole.FREE,  // Asignar rol predeterminado
+          credits: 100,  // Asignar créditos iniciales
         });
       }
 
+      console.log('🔑 Usuario autenticado correctamente:', user);
+      // Genera un JWT para el usuario
       const token = this.jwtService.sign({
         sub: user.userId,
         email: user.email,
-        name: user.name,
+        name: user.name ?? 'Usuario sin nombre',
         role: user.role,
       });
 
@@ -138,7 +167,7 @@ export class AuthService {
         credits: user.credits,
       };
     } catch (error) {
-      console.error('[Google Login Error]', error);
+      console.error('[Google Login Error]', error); // Log para el error
       throw new UnauthorizedException('Token de Google inválido');
     }
   }

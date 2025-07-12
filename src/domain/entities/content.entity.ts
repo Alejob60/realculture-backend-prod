@@ -1,3 +1,4 @@
+// src/domain/entities/content.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -5,8 +6,7 @@ import {
   CreateDateColumn,
   ManyToOne,
 } from 'typeorm';
-
-import { UserEntity } from '../../domain/entities/user.entity';
+import { UserEntity } from './user.entity';
 
 @Entity('contents')
 export class Content {
@@ -23,7 +23,7 @@ export class Content {
   mediaUrl: string;
 
   @Column({ nullable: true })
-  duration?: number; // en segundos (opcional para audio/video)
+  duration?: number;
 
   @Column({ default: 'other' })
   type: 'image' | 'audio' | 'video' | 'text' | 'other';
@@ -35,8 +35,24 @@ export class Content {
   creator?: UserEntity;
 
   @Column({ nullable: true })
-  userId?: string; // para relaciones sin instanciar entidad completa
+  userId?: string;
 
   @Column({ default: 'completed' })
   status: string;
+
+  @Column({ nullable: true })
+  prompt?: string;
+
+  @Column({ nullable: true })
+  filename?: string;
+
+  // ✅ Campos nuevos necesarios:
+  @Column({ nullable: true })
+  url?: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  expiresAt?: Date;
+
+  @Column({ type: 'text', nullable: true })
+  metadata?: string;
 }

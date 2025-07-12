@@ -3,192 +3,130 @@ import {
   Post,
   Req,
   Body,
-  Param,
-  Get,
   UseGuards,
   UnauthorizedException,
-  BadRequestException,
   HttpException,
   HttpStatus,
+  Get,
+  Param,
   Logger,
-  Query,
-  Res,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { UseServiceUseCase } from '../../application/use-cases/use-service.use-case';
+import { MediaBridgeService } from '../../infrastructure/services/media-bridge.service';
 import { UserService } from '../../infrastructure/services/user.service';
 import { GeneratedImageService } from '../../infrastructure/services/generated-image.service';
-import { HttpService } from '@nestjs/axios';
-import { MediaBridgeService } from '../../infrastructure/services/media-bridge.service';
-import { Public } from 'src/common/decorators/public.decorator';
+import { ContentService } from '../../infrastructure/services/content.service';
 import { AzureBlobService } from '../../infrastructure/services/azure-blob.services';
 
-@UseGuards(JwtAuthGuard)
 @Controller('media')
 export class MediaController {
   private readonly logger = new Logger(MediaController.name);
 
   constructor(
-    private readonly useService: UseServiceUseCase,
     private readonly mediaBridgeService: MediaBridgeService,
     private readonly userService: UserService,
     private readonly imageService: GeneratedImageService,
-    private readonly httpService: HttpService,
+    private readonly contentService: ContentService,
     private readonly azureBlobService: AzureBlobService,
   ) {}
 
   private extractUserData(req: Request): { userId: string; token: string } {
-    const userId = req.user?.['userId'];
+    const userId = req.user?.['userId'] || (req.user as any)?.sub;
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!userId || !token) {
-      throw new UnauthorizedException(
-        'Usuario no autenticado o token no encontrado',
-      );
+      throw new UnauthorizedException('Usuario no autenticado o token no encontrado');
     }
     return { userId, token };
   }
 
-  @Post(':type')
-  async generate(
-    @Param('type') type: string,
-    @Req() req: Request,
-    @Body() body: any,
-  ) {
+  @UseGuards(JwtAuthGuard)
+  @Post('image')
+  async generateImage(@Body() body: any, @Req() req: Request) {
     const { userId, token } = this.extractUserData(req);
 
-    const typeMap: Record<
-      string,
-      'image' | 'video' | 'tts' | 'voice' | 'music' | 'ai-agent'
-    > = {
-      image: 'image',
-      video: 'video',
-      voice: 'voice',
-      music: 'music',
-      agent: 'ai-agent',
-    };
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
 
-    const usageKey = typeMap[type];
-    if (!usageKey) {
-      throw new BadRequestException(`Tipo de contenido no soportado: ${type}`);
+    const plan = user.role?.toUpperCase?.() || 'FREE';
+    const requiredCredits = 10;
+
+    if (user.credits < requiredCredits) {
+      throw new HttpException('Créditos insuficientes', HttpStatus.FORBIDDEN);
     }
 
-    await this.useService.execute(userId, usageKey);
-
-    const serviceMap: Record<
-      string,
-      (data: any, token?: string) => Promise<any>
-    > = {
-      image: this.mediaBridgeService.generatePromoImage,
-      video: this.mediaBridgeService.generateVideo,
-      voice: this.mediaBridgeService.generateVoice,
-      music: this.mediaBridgeService.generateMusic,
-      agent: this.mediaBridgeService.generateAgent,
-    };
-
-    const generate = serviceMap[type];
-    let result;
-
-    if (type === 'image') {
-      const user = await this.userService.findById(userId);
-      if (!user || !user.plan) {
-        throw new UnauthorizedException(
-          'No se pudo determinar el plan del usuario',
-        );
-      }
-
-      const plan = user.plan;
-      result = await this.mediaBridgeService.generatePromoImage({
-        prompt: body.prompt,
-        plan,
-      });
-
-      const prompt = result?.result?.prompt;
-      const imageUrl = result?.result?.imageUrl;
-      const filename = result?.result?.filename;
-
-      if (imageUrl && prompt && filename) {
-        await this.imageService.saveImage(
-          userId,
-          prompt,
-          imageUrl,
-          filename,
-          plan,
-        );
-      }
-    } else {
-      result = await generate.call(this.mediaBridgeService, body, token);
-    }
-
-    const updatedUser = await this.userService.findById(userId);
-    if (!updatedUser) {
-      throw new UnauthorizedException(
-        'Usuario no encontrado luego de generar contenido',
+    // ⚠️ Validar tipo booleano si viene textOverlay
+    if (body.textOverlay !== undefined && typeof body.textOverlay !== 'boolean') {
+      throw new HttpException(
+        'El campo textOverlay debe ser booleano si se incluye',
+        HttpStatus.BAD_REQUEST,
       );
     }
+
+    const payload: any = {
+      prompt: body.prompt,
+      plan,
+    };
+
+    if (body.textOverlay !== undefined) {
+      payload.textOverlay = body.textOverlay;
+    }
+
+    // 🔁 Llamar al microservicio para generar la imagen
+    const result = await this.mediaBridgeService.generatePromoImage(payload);
+
+    if (!result || !result.success || !result.result?.imageUrl) {
+      throw new HttpException('No se pudo generar la imagen correctamente', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // Descontar créditos del usuario
+    user.credits -= requiredCredits;
+    await this.userService.save(user);
+
+    // Obtener la URL SAS para la imagen generada
+    const signedUrl = await this.azureBlobService.getSignedUrl({
+      filename: result.result.filename, // Asegúrate que "filename" esté presente en el resultado
+      container: 'images',
+      expiresInSeconds: 86400, // 24 horas
+    });
+
+    // Guardar la imagen en la base de datos
+    await this.contentService.save({
+      userId,
+      type: 'image',
+      prompt: result.result.prompt,
+      url: signedUrl, // Usamos la URL SAS aquí
+      status: 'success',
+      createdAt: new Date(),
+    });
 
     return {
       success: true,
-      message: `✅ ${type.toUpperCase()} generado correctamente`,
-      result: { ...(result?.result || {}) }, // 🔁 Aquí se incluye filename
-      credits: updatedUser.credits,
+      message: '✅ Imagen generada correctamente',
+      result: {
+        ...result.result,
+        url: signedUrl, // Asegúrate que devolvamos la URL firmada
+      },
+      credits: user.credits,
     };
   }
 
-  @Get('images')
-  async getImages(@Req() req: Request) {
-    const userId = (req.user as any).sub;
-    const images = await this.imageService.getImagesByUserId(userId);
-    return { success: true, result: images };
-  }
-
-  @Get('proxy-image')
-  @Public()
-  async proxyImage(@Query('url') url: string, @Res() res: Response) {
-    try {
-      const imageResponse = await this.httpService.axiosRef.get(url, {
-        responseType: 'arraybuffer',
-      });
-
-      res.setHeader('Content-Type', imageResponse.headers['content-type']);
-      res.send(imageResponse.data);
-    } catch (error) {
-      this.logger.error(`Error al cargar imagen: ${error.message}`);
-      throw new HttpException(
-        'No se pudo cargar la imagen remota',
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-  }
-
-  @Get('preview/:filename')
-  async serveAudio(@Param('filename') filename: string, @Res() res: Response) {
-    try {
-      const buffer = await this.mediaBridgeService.fetchAudioFile(filename);
-      res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-      res.send(buffer);
-    } catch (error) {
-      throw new HttpException('Audio no encontrado', HttpStatus.NOT_FOUND);
-    }
-  }
-
+  @UseGuards(JwtAuthGuard)
   @Get('/signed-image/:filename')
   async getSignedImageUrl(@Param('filename') filename: string) {
-    const signedUrl = await this.azureBlobService.getSignedUrl(filename, 86400); // 1 día
-    return { url: signedUrl };
-  }
-  @Get('my-images')
-  @UseGuards(JwtAuthGuard)
-  async getMyImages(@Req() req: Request) {
-    const userId = (req.user as any)?.sub;
-    if (!userId) {
-      throw new UnauthorizedException(
-        'No se pudo obtener el usuario del token',
-      );
-    }
+    try {
+      // Llamar a la función getSignedUrl para obtener la URL con el SAS
+      const signedUrl = await this.azureBlobService.getSignedUrl({
+        filename,
+        container: 'images', // El contenedor de Azure Blob Storage donde se almacenan las imágenes
+        expiresInSeconds: 86400, // 1 día
+      });
 
-    const images = await this.imageService.getImagesByUserId(userId);
-    return images;
+      // Devolver la URL firmada al frontend
+      return { url: signedUrl };
+    } catch (error) {
+      // Si hay algún error en la obtención de la URL firmada, lanzar una excepción
+      throw new HttpException('Error al generar la URL firmada', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

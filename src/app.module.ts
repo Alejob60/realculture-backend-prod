@@ -14,7 +14,6 @@ import { GeneratedImageEntity } from './domain/entities/generated-image.entity';
 import { GeneratedAudioEntity } from './domain/entities/generated-audio.entity';
 import { GeneratedMusicEntity } from './domain/entities/generated-music.entity';
 import { GeneratedVideoEntity } from './domain/entities/generated-video.entity';
-
 // 🧩 Módulos
 import { AuthModule } from './auth.module';
 import { ContentModule } from './infrastructure/modules/content.module';
@@ -31,7 +30,7 @@ import { GalleryController } from './interfaces/controllers/gallery.controller';
 import { AudioController } from './interfaces/controllers/audio.controller';
 import { HealthController } from './interfaces/controllers/health.controller';
 import { PaymentsController } from './interfaces/controllers/payment.controller';
-
+import {VideoController} from './interfaces/controllers/video-controller';
 // 🧩 Casos de uso
 import { GenerateRagResponseUseCase } from './application/use-cases/generate-rag-response.use-case';
 import { UseServiceUseCase } from './application/use-cases/use-service.use-case';
@@ -118,6 +117,7 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
     AudioController,
     HealthController,
     PaymentsController,
+    VideoController,  // Asegúrate de agregar el controlador de video
   ],
 
   providers: [
@@ -137,8 +137,10 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 
     {
       provide: ContentRepository,
-      useFactory: (repo: Repository<Content>) => new ContentRepository(repo),
-      inject: [getRepositoryToken(Content)],
+      useFactory: (contentRepo: Repository<Content>, userRepo: Repository<UserEntity>) => {
+        return new ContentRepository(contentRepo, userRepo); // Pasamos ambos repositorios al constructor
+      },
+      inject: [getRepositoryToken(Content), getRepositoryToken(UserEntity)],
     },
     {
       provide: InfluencerRepository,
@@ -152,6 +154,6 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
     },
   ],
 
-  exports: [AzureBlobService],
+  exports: [AzureBlobService,ContentRepository],
 })
 export class AppModule {}

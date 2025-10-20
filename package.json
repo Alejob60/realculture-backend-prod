@@ -5,6 +5,9 @@
   "author": "Alejandro",
   "private": true,
   "license": "UNLICENSED",
+  "bin": {
+    "misy-cli": "dist/cli/misy-cli.js"
+  },
   "scripts": {
     "build": "nest build --config tsconfig.build.json",
     "start": "node dist/main.js",
@@ -27,7 +30,9 @@
     "start:azure": "node dist/main.js",
     "test:endpoints": "node test-endpoints.js",
     "verify:endpoints": "node verify-endpoints.js",
-    "health:check": "node health-check.js"
+    "health:check": "node health-check.js",
+    "cli:build": "tsc src/cli/misy-cli.ts --outDir dist/cli --esModuleInterop true --skipLibCheck true",
+    "cli": "node dist/cli/misy-cli.js"
   },
   "dependencies": {
     "@azure/service-bus": "^7.9.5",

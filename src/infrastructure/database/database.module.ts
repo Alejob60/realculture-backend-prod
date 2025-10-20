@@ -11,6 +11,7 @@ import { GeneratedMusicEntity } from '../../domain/entities/generated-music.enti
 import { GeneratedVideoEntity } from '../../domain/entities/generated-video.entity';
 import { InfluencerEntity } from '../../domain/entities/influencer.entity';
 import { Product } from '../../domain/entities/product.entity';
+import { ApiKeyEntity } from '../../domain/entities/api-key.entity';
 
 // Custom Repositories
 import { UserRepository } from './user.repository';
@@ -30,6 +31,7 @@ import { GeneratedImageRepository } from './generated-image.repository';
       GeneratedVideoEntity,
       InfluencerEntity,
       Product,
+      ApiKeyEntity,
     ]),
   ],
   providers: [

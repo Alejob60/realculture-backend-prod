@@ -4,10 +4,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './infrastructure/services/auth.service';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 import { AuthController } from './interfaces/controllers/auth.controller';
+import { ApiKeyController } from './interfaces/controllers/api-key.controller';
+import { ConfigController } from './interfaces/controllers/config.controller';
 import { PassportModule } from '@nestjs/passport';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { UserModule } from './infrastructure/modules/user.module';
 import { LoginUseCase } from './application/use-cases/login.use-case';
+import { ApiKeyService } from './infrastructure/services/api-key.service';
 
 @Module({
   imports: [
@@ -24,8 +27,8 @@ import { LoginUseCase } from './application/use-cases/login.use-case';
     DatabaseModule,
     forwardRef(() => UserModule),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LoginUseCase],
-  exports: [AuthService, JwtModule],
+  controllers: [AuthController, ApiKeyController, ConfigController],
+  providers: [AuthService, JwtStrategy, LoginUseCase, ApiKeyService],
+  exports: [AuthService, JwtModule, ApiKeyService],
 })
 export class AuthModule {}

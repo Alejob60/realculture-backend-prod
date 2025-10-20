@@ -69,6 +69,27 @@ Check the current authentication status:
 misy-cli auth status
 ```
 
+#### Generate API Key
+Generate an API key for CLI authentication (requires JWT authentication):
+
+```bash
+misy-cli auth generate-api-key
+```
+
+#### Configure with API Key
+Configure the CLI with an API key:
+
+```bash
+misy-cli auth configure <api-key>
+```
+
+#### Clear API Key
+Remove the stored API key:
+
+```bash
+misy-cli auth clear-api-key
+```
+
 ### Configuration
 
 #### API URL
@@ -79,12 +100,21 @@ export MISYBOT_API_URL=https://api.misybot.com
 misy-cli auth login user@example.com mypassword
 ```
 
+#### Get Configuration
+Retrieve secure configuration from the backend using an API key:
+
+```bash
+misy-cli config get
+```
+
 ### Token Storage
 Authentication tokens are stored securely in:
 - **Windows**: `%USERPROFILE%\.misybot\token.json`
 - **macOS/Linux**: `~/.misybot/token.json`
 
-The token file contains the JWT token and user information, and is used for authenticated requests.
+API keys are stored in:
+- **Windows**: `%USERPROFILE%\.misybot\api-key.json`
+- **macOS/Linux**: `~/.misybot/api-key.json`
 
 ## Development
 
@@ -95,6 +125,21 @@ src/
 │   ├── misy-cli.ts      # Main CLI entry point (includes all commands)
 │   ├── build-cli.ts     # CLI build script
 │   └── index.ts         # CLI exports
+├── domain/              # Domain entities
+│   └── entities/        # Database entities
+│       └── api-key.entity.ts  # API Key entity
+├── infrastructure/      # Infrastructure layer
+│   ├── database/        # Database module
+│   └── services/        # Business services
+│       └── api-key.service.ts  # API Key service
+├── interfaces/          # Interface layer
+│   ├── controllers/     # REST controllers
+│   │   ├── api-key.controller.ts  # API Key controller
+│   │   └── config.controller.ts   # Configuration controller
+│   └── guards/          # Authentication guards
+│       └── api-key.guard.ts       # API Key guard
+├── migrations/          # Database migrations
+│   └── 1760500000000-CreateApiKeysTable.ts  # API Keys table migration
 ├── types/               # TypeScript type definitions
 │   └── auth-types.ts    # Authentication-related types
 └── ...                  # Other project files

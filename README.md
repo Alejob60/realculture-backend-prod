@@ -70,6 +70,32 @@ $ mau deploy
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
+### Docker Deployment
+
+This application includes Docker support for easy deployment. To build and run using Docker:
+
+1. Build the Docker image:
+   ```bash
+   npm run docker:build
+   ```
+
+2. Run the Docker container:
+   ```bash
+   npm run docker:run
+   ```
+
+Alternatively, you can use Docker Compose to run the application with its dependencies:
+
+1. Start the services:
+   ```bash
+   npm run docker:compose:up
+   ```
+
+2. Stop the services:
+   ```bash
+   npm run docker:compose:down
+   ```
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:
@@ -82,6 +108,18 @@ Check out a few resources that may come in handy when working with NestJS:
 - Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
 - To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
 - Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## System Stability Verification
+
+This project includes comprehensive verification processes to ensure system stability:
+
+- [System Stability Checklist](SYSTEM-STABILITY-CHECKLIST.md)
+- [Pre-commit Verification Procedures](PRE-COMMIT-CHECKS.md)
+- [Commit Message Template](COMMIT-MESSAGE-TEMPLATE.md)
+- [Current System Status Report](CURRENT-SYSTEM-STATUS.md)
+- [Stability Verification Summary](STABILITY-VERIFICATION-SUMMARY.md)
+
+Before committing changes, please follow the verification procedures to ensure system stability.
 
 ## Support
 

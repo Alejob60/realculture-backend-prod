@@ -92,8 +92,7 @@ The token file contains the JWT token and user information, and is used for auth
 ```
 src/
 ├── cli/                 # CLI tool source code
-│   ├── auth-command.ts  # Authentication command implementation
-│   ├── misy-cli.ts      # Main CLI entry point
+│   ├── misy-cli.ts      # Main CLI entry point (includes all commands)
 │   ├── build-cli.ts     # CLI build script
 │   └── index.ts         # CLI exports
 ├── types/               # TypeScript type definitions

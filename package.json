@@ -19,9 +19,18 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "typeorm:migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate",
-    "typeorm:migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run"
+    "typeorm:migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run",
+    "docker:build": "docker build -t misybot-backend .",
+    "docker:run": "docker run -p 3001:3001 --env-file .env misybot-backend",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "start:azure": "node dist/main.js",
+    "test:endpoints": "node test-endpoints.js",
+    "verify:endpoints": "node verify-endpoints.js",
+    "health:check": "node health-check.js"
   },
   "dependencies": {
+    "@azure/service-bus": "^7.9.5",
     "@azure/storage-blob": "^12.27.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.6",
@@ -30,17 +39,20 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.0.1",
     "@nestjs/typeorm": "^11.0.0",
+    "@types/chalk": "^0.4.31",
     "applicationinsights": "^3.7.0",
     "axios": "^1.9.0",
     "bcrypt": "^6.0.0",
+    "chalk": "^5.6.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "express-rate-limit": "^7.5.0",
     "google-auth-library": "^10.1.0",
     "helmet": "^8.1.0",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.6.12",
     "openai": "^5.2.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -52,7 +64,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.0",
+    "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/bcrypt": "^5.0.2",
@@ -73,7 +85,8 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.46.1"
   },
   "jest": {
     "moduleFileExtensions": [
